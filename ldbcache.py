@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 
 
-# lru cache using LevelDB as storage backend
+# ldbcache is lru cache using LevelDB as storage backend
 # Data will be stored in lru cache and when there are too many items in memory, least recently used items will be moved
 # to LevelDB storage.
 
@@ -29,7 +29,7 @@ class ldbcache(object):
 		# if cleardb == False, restore all keys from DB
 		if not cleardb:
 			for key in self.ldb.RangeIter('', include_value=False):
-				self.ramcache[key] = 1
+				self.dbcache[key] = 1
 
 	def _onRemoveFromRam(self, key, val):
 		# if key-value is removed from RAM, put it to the DB
@@ -143,12 +143,19 @@ class ldbcache(object):
 
 	def clear(self, ramonly=False):
 		self.ramcache.clear()
-
 		if not ramonly:
 			for key in self.dbcache:
 				self.ldb.Delete(key)
-
 			self.dbcache.clear()
+
+	def flush(self):
+		"""save all ram cache to db cache"""
+		# move all RAM items to DB
+		for key, val in self.ramcache.items():
+			self.dbcache[key] = 1
+			self.ldb.Put( key, self.marshal(val) )
+
+		self.ramcache.clear()
 
 if __name__ == '__main__':
 	c = ldbcache('test', 2, 2, str, int, cleardb=False)
